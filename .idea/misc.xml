@@ -5,6 +5,7 @@
     <option name="originalFiles">
       <list>
         <option value="$PROJECT_DIR$/communityManager/pom.xml" />
+        <option value="$PROJECT_DIR$/cartManager/pom.xml" />
       </list>
     </option>
   </component>
