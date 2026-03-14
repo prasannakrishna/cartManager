@@ -3,12 +3,16 @@ import com.bhagwat.retail.cart.dto.CartSubscriptionDto;
 import com.bhagwat.retail.cart.dto.CommunityOrderCreatedEvent;
 import com.bhagwat.retail.cart.dto.ProspectusDto;
 import com.bhagwat.retail.cart.dto.SubscriptionCheckoutDto;
+import com.bhagwat.retail.cart.entity.OutboxEvent;
+import com.bhagwat.retail.cart.repository.OutboxEventRepository;
 import com.bhagwat.retail.cart.service.CartSubscriptionCommandService;
 import com.bhagwat.retail.cart.service.CartSubscriptionQueryService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -29,7 +33,8 @@ public class CartSubscriptionController {
 
     private final CartSubscriptionCommandService commandService;
     private final CartSubscriptionQueryService queryService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     private static final String COMMUNITY_ORDER_TOPIC = "community-order-events";
 
@@ -91,7 +96,13 @@ public class CartSubscriptionController {
      * Groups subscriptions by community and publishes a CommunityOrderCreatedEvent
      * to Kafka for each community. orderService picks these up and persists them.
      */
+    /**
+     * Community subscription checkout via Transactional Outbox.
+     * Events are written to the outbox table atomically with any subscription state changes,
+     * and the OutboxRelayService publishes them to Kafka asynchronously.
+     */
     @PostMapping("/checkout")
+    @Transactional
     public ResponseEntity<List<SubscriptionCheckoutDto>> checkoutSubscriptions(
             @RequestParam("checkoutDate") LocalDate checkoutDate,
             @RequestParam(value = "calendarUnit", defaultValue = "DAY") String calendarUnit) {
@@ -119,7 +130,19 @@ public class CartSubscriptionController {
                     checkoutDate.toString(),
                     Instant.now()
             );
-            kafkaTemplate.send(COMMUNITY_ORDER_TOPIC, checkout.getCommunityId(), event);
+
+            try {
+                OutboxEvent outbox = OutboxEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .topic(COMMUNITY_ORDER_TOPIC)
+                        .messageKey(checkout.getCommunityId())
+                        .eventType("com.bhagwat.retail.cart.dto.CommunityOrderCreatedEvent")
+                        .payload(objectMapper.writeValueAsString(event))
+                        .build();
+                outboxEventRepository.save(outbox);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to serialize CommunityOrderCreatedEvent for outbox", e);
+            }
         });
 
         return ResponseEntity.ok(checkouts);

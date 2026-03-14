@@ -81,6 +81,25 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory);
     }
 
+    /**
+     * Raw String KafkaTemplate used by OutboxRelayService.
+     * The payload is already JSON-serialized; we just need a String producer
+     * so we can set the __TypeId__ header manually from the outbox record.
+     */
+    @Bean
+    public ProducerFactory<String, String> rawProducerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+    @Bean
+    public KafkaTemplate<String, String> rawKafkaTemplate(ProducerFactory<String, String> rawProducerFactory) {
+        return new KafkaTemplate<>(rawProducerFactory);
+    }
+
     @Bean
     public ConsumerFactory<String, Object> consumerFactory(ObjectMapper objectMapper) { // Inject ObjectMapper
         Map<String, Object> config = new HashMap<>();
