@@ -4,6 +4,7 @@ import com.bhagwat.retail.cart.dto.CartSubscriptionDto;
 import com.bhagwat.retail.cart.dto.ProspectusDto;
 import com.bhagwat.retail.cart.dto.SubscriptionCheckoutDto;
 import com.bhagwat.retail.cart.entity.CartSubscriptionDocument;
+import com.bhagwat.retail.cart.entity.SubscriptionItem;
 import com.bhagwat.retail.cart.enums.SubscriptionCycleStatus;
 import com.bhagwat.retail.cart.repository.CartSubscriptionDocumentRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
@@ -37,9 +39,8 @@ public class CartSubscriptionQueryService {
     private CartSubscriptionDto toDto(CartSubscriptionDocument document) {
         return CartSubscriptionDto.builder()
                 .id(document.getId())
+                .subscriptionItems(toDtoItems(document.getSubscriptionItems()))
                 .customerId(document.getCustomerId())
-                .sellerId(document.getSellerId())
-                .productVariantId(document.getProductVariantId())
                 .skuId(document.getSkuId())
                 .orderId(document.getOrderId())
                 .consignmentId(document.getConsignmentId())
@@ -126,5 +127,17 @@ public class CartSubscriptionQueryService {
         AggregationResults<ProspectusDto> results =
                 mongoTemplate.aggregate(aggregation, "cart_subscriptions", ProspectusDto.class);
         return results.getMappedResults();
+    }
+
+    private List<CartSubscriptionDto.SubscriptionItem> toDtoItems(List<CartSubscriptionDocument.SubscriptionItem> entityItems) {
+        if (entityItems == null) return null;
+        return entityItems.stream()
+                .map(entityItem -> CartSubscriptionDto.SubscriptionItem.builder()
+                        .productId(entityItem.getProductId())
+                        .variantId(entityItem.getVariantId())
+                        .quantity(entityItem.getQuantity())
+                        .sellerId(entityItem.getSellerId())
+                        .build())
+                .collect(Collectors.toList());
     }
 }

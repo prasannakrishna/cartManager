@@ -1,5 +1,6 @@
 package com.bhagwat.retail.cart.controller;
 import com.bhagwat.retail.cart.dto.CartSubscriptionDto;
+import com.bhagwat.retail.cart.dto.CommunityOrderCreatedEvent;
 import com.bhagwat.retail.cart.dto.ProspectusDto;
 import com.bhagwat.retail.cart.dto.SubscriptionCheckoutDto;
 import com.bhagwat.retail.cart.service.CartSubscriptionCommandService;
@@ -7,10 +8,15 @@ import com.bhagwat.retail.cart.service.CartSubscriptionQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST controller for managing CartSubscription resources.
@@ -23,6 +29,9 @@ public class CartSubscriptionController {
 
     private final CartSubscriptionCommandService commandService;
     private final CartSubscriptionQueryService queryService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    private static final String COMMUNITY_ORDER_TOPIC = "community-order-events";
 
     /**
      * Creates a new cart subscription. This is a command operation.
@@ -75,6 +84,45 @@ public class CartSubscriptionController {
             @RequestParam(value = "groupByProductId", defaultValue = "false") boolean groupByProductId) {
         List<SubscriptionCheckoutDto> result = queryService.getSubscriptionsForCheckout(checkoutDate, groupByProductId);
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Triggers community order checkout:
+     * Groups subscriptions by community and publishes a CommunityOrderCreatedEvent
+     * to Kafka for each community. orderService picks these up and persists them.
+     */
+    @PostMapping("/checkout")
+    public ResponseEntity<List<SubscriptionCheckoutDto>> checkoutSubscriptions(
+            @RequestParam("checkoutDate") LocalDate checkoutDate,
+            @RequestParam(value = "calendarUnit", defaultValue = "DAY") String calendarUnit) {
+
+        List<SubscriptionCheckoutDto> checkouts = queryService.getSubscriptionsForCheckout(checkoutDate, false);
+
+        checkouts.forEach(checkout -> {
+            List<CommunityOrderCreatedEvent.CommunityOrderItemDto> items = checkout.getProducts().stream()
+                    .map(p -> new CommunityOrderCreatedEvent.CommunityOrderItemDto(
+                            p.getProductId(),
+                            null,   // variantId — not in SubscriptionCheckoutDto
+                            null,   // sellerId — not in SubscriptionCheckoutDto at this level
+                            p.getTotalQuantity() != null ? p.getTotalQuantity().intValue() : 0,
+                            BigDecimal.ZERO  // price enriched by orderService
+                    )).collect(Collectors.toList());
+
+            CommunityOrderCreatedEvent event = new CommunityOrderCreatedEvent(
+                    "COMMUNITY_ORDER_CREATED",
+                    UUID.randomUUID().toString(),
+                    checkout.getCommunityId(),
+                    calendarUnit,
+                    items,
+                    BigDecimal.ZERO,  // totalAmount enriched by orderService
+                    "USD",
+                    checkoutDate.toString(),
+                    Instant.now()
+            );
+            kafkaTemplate.send(COMMUNITY_ORDER_TOPIC, checkout.getCommunityId(), event);
+        });
+
+        return ResponseEntity.ok(checkouts);
     }
 
     @GetMapping("/prospectus")

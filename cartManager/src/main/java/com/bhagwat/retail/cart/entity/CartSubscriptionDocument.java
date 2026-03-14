@@ -12,10 +12,15 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Query-side document for MongoDB, optimized for fast retrieval.
+ */
+/**
+ * MongoDB Document for Cart Subscription, used for the Query/Read side.
+ * This document is updated to support the new 'subscriptionItems' list.
  */
 @Document(collection = "cart_subscriptions")
 @Data
@@ -28,11 +33,10 @@ public class CartSubscriptionDocument {
     private String id;
 
     private String customerId;
-    private String sellerId;
 
-    // Mongo can directly store Map<String, String> without complex annotations
-    @Field("product_variant_id")
-    private Map<String, String> productVariantId;
+    // CRITICAL UPDATE: Replaced 'sellerId' and 'productVariantId' with the item list
+    @Field("subscription_items")
+    private List<SubscriptionItem> subscriptionItems;
 
     private String skuId;
     private String orderId;
@@ -47,5 +51,25 @@ public class CartSubscriptionDocument {
     private BigDecimal amountPaid;
     private String customerAddressId;
     private String communityId;
-}
 
+    /**
+     * Inner class representing a single subscribed line item.
+     * This ensures the seller ID is associated with the product variant.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SubscriptionItem {
+        @Field("product_id")
+        private String productId;
+
+        @Field("variant_id")
+        private String variantId;
+
+        private Integer quantity;
+
+        @Field("seller_id")
+        private String sellerId;
+    }
+}

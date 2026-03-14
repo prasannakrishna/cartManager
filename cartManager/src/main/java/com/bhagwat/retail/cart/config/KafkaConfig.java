@@ -4,6 +4,8 @@ package com.bhagwat.retail.cart.config;
 import com.bhagwat.retail.cart.dto.CartSubscriptionCreatedEvent;
 import com.bhagwat.retail.cart.dto.CartSubscriptionDeletedEvent;
 import com.bhagwat.retail.cart.dto.CartSubscriptionUpdatedEvent;
+import com.bhagwat.retail.cart.dto.CustomerOrderCreatedEvent;
+import com.bhagwat.retail.cart.dto.CommunityOrderCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -54,7 +56,9 @@ public class KafkaConfig {
         objectMapper.registerSubtypes(
                 new NamedType(CartSubscriptionCreatedEvent.class, "CartSubscriptionCreatedEvent"),
                 new NamedType(CartSubscriptionUpdatedEvent.class, "CartSubscriptionUpdatedEvent"),
-                new NamedType(CartSubscriptionDeletedEvent.class, "CartSubscriptionDeletedEvent")
+                new NamedType(CartSubscriptionDeletedEvent.class, "CartSubscriptionDeletedEvent"),
+                new NamedType(CustomerOrderCreatedEvent.class, "CustomerOrderCreatedEvent"),
+                new NamedType(CommunityOrderCreatedEvent.class, "CommunityOrderCreatedEvent")
         );
         return objectMapper;
     }

@@ -5,10 +5,14 @@ import com.bhagwat.retail.cart.dto.CartSubscriptionDeletedEvent;
 import com.bhagwat.retail.cart.dto.CartSubscriptionDto;
 import com.bhagwat.retail.cart.dto.CartSubscriptionUpdatedEvent;
 import com.bhagwat.retail.cart.entity.CartSubscription;
+import com.bhagwat.retail.cart.entity.SubscriptionItem;
 import com.bhagwat.retail.cart.repository.CartSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -32,8 +36,6 @@ public class CartSubscriptionCommandService {
     public CartSubscriptionDto updateSubscription(String id, CartSubscriptionDto dto) {
         return postgresRepository.findById(id).map(existing -> {
             // Update fields from DTO
-            existing.setSellerId(dto.getSellerId());
-            existing.setProductVariantId(dto.getProductVariantId());
             existing.setSkuId(dto.getSkuId());
             existing.setOrderId(dto.getOrderId());
             existing.setConsignmentId(dto.getConsignmentId());
@@ -46,6 +48,7 @@ public class CartSubscriptionCommandService {
             existing.setRemainingCycleCounts(dto.getRemainingCycleCounts());
             existing.setAmountPaid(dto.getAmountPaid());
             existing.setCustomerAddressId(dto.getCustomerAddressId());
+            existing.setSubscriptionItems(toPostgresItems(dto.getSubscriptionItems()));
 
             CartSubscription updatedEntity = postgresRepository.save(existing);
             CartSubscriptionDto updatedDto = toDto(updatedEntity);
@@ -72,8 +75,9 @@ public class CartSubscriptionCommandService {
         return CartSubscription.builder()
                 .id(dto.getId())
                 .customerId(dto.getCustomerId())
-                .sellerId(dto.getSellerId())
-                .productVariantId(dto.getProductVariantId())
+                // REMOVED: .sellerId(dto.getSellerId())
+                // REMOVED: .productVariantId(dto.getProductVariantId())
+                .subscriptionItems(toPostgresItems(dto.getSubscriptionItems()))
                 .skuId(dto.getSkuId())
                 .orderId(dto.getOrderId())
                 .consignmentId(dto.getConsignmentId())
@@ -94,8 +98,9 @@ public class CartSubscriptionCommandService {
         return CartSubscriptionDto.builder()
                 .id(entity.getId())
                 .customerId(entity.getCustomerId())
-                .sellerId(entity.getSellerId())
-                .productVariantId(entity.getProductVariantId())
+                // REMOVED: .sellerId(entity.getSellerId())
+                // REMOVED: .productVariantId(entity.getProductVariantId())
+                .subscriptionItems(toDtoItems(entity.getSubscriptionItems()))
                 .skuId(entity.getSkuId())
                 .orderId(entity.getOrderId())
                 .consignmentId(entity.getConsignmentId())
@@ -111,4 +116,28 @@ public class CartSubscriptionCommandService {
                 .communityId(entity.getCommunityId())
                 .build();
     }
+    private List<CartSubscriptionDto.SubscriptionItem> toDtoItems(List<SubscriptionItem> entityItems) {
+        if (entityItems == null) return null;
+        return entityItems.stream()
+                .map(entityItem -> CartSubscriptionDto.SubscriptionItem.builder()
+                        .productId(entityItem.getProductId())
+                        .variantId(entityItem.getVariantId())
+                        .quantity(entityItem.getQuantity())
+                        .sellerId(entityItem.getSellerId())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<SubscriptionItem> toPostgresItems(List<CartSubscriptionDto.SubscriptionItem> dtoItems) {
+        if (dtoItems == null) return null;
+        return dtoItems.stream()
+                .map(dtoItem -> SubscriptionItem.builder()
+                        .productId(dtoItem.getProductId())
+                        .variantId(dtoItem.getVariantId())
+                        .quantity(dtoItem.getQuantity())
+                        .sellerId(dtoItem.getSellerId())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
 }

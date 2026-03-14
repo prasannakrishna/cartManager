@@ -4,6 +4,7 @@ import com.bhagwat.retail.cart.dto.CartSubscriptionDeletedEvent;
 import com.bhagwat.retail.cart.dto.CartSubscriptionDto;
 import com.bhagwat.retail.cart.dto.CartSubscriptionUpdatedEvent;
 import com.bhagwat.retail.cart.entity.CartSubscriptionDocument;
+import com.bhagwat.retail.cart.entity.SubscriptionItem;
 import com.bhagwat.retail.cart.repository.CartSubscriptionDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +12,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,8 +57,7 @@ public class CartSubscriptionEventConsumer {
 
         return CartSubscriptionDocument.builder()
                 .customerId(subscriptionDto.getCustomerId())
-                .sellerId(subscriptionDto.getSellerId())
-                .productVariantId(subscriptionDto.getProductVariantId())
+                .subscriptionItems(toMongoSubscriptionItems(subscriptionDto.getSubscriptionItems()))
                 .skuId(subscriptionDto.getSkuId())
                 .orderId(subscriptionDto.getOrderId())
                 .consignmentId(subscriptionDto.getConsignmentId())
@@ -79,8 +81,7 @@ public class CartSubscriptionEventConsumer {
         CartSubscriptionDto subscriptionDto = (CartSubscriptionDto) dto;
 
         document.setCustomerId(subscriptionDto.getCustomerId());
-        document.setSellerId(subscriptionDto.getSellerId());
-        document.setProductVariantId(subscriptionDto.getProductVariantId());
+        document.setSubscriptionItems(toMongoSubscriptionItems(subscriptionDto.getSubscriptionItems()));
         document.setSkuId(subscriptionDto.getSkuId());
         document.setOrderId(subscriptionDto.getOrderId());
         document.setConsignmentId(subscriptionDto.getConsignmentId());
@@ -94,5 +95,17 @@ public class CartSubscriptionEventConsumer {
         document.setAmountPaid(subscriptionDto.getAmountPaid());
         document.setCustomerAddressId(subscriptionDto.getCustomerAddressId());
         document.setCommunityId(subscriptionDto.getCommunityId());
+    }
+
+    private List<CartSubscriptionDocument.SubscriptionItem> toMongoSubscriptionItems(List<CartSubscriptionDto.SubscriptionItem> dtoItems) {
+        if (dtoItems == null) return null;
+        return dtoItems.stream()
+                .map(dtoItem -> CartSubscriptionDocument.SubscriptionItem.builder()
+                        .productId(dtoItem.getProductId())
+                        .variantId(dtoItem.getVariantId())
+                        .quantity(dtoItem.getQuantity())
+                        .sellerId(dtoItem.getSellerId())
+                        .build())
+                .collect(Collectors.toList());
     }
 }

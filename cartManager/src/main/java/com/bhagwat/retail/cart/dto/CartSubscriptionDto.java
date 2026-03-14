@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,8 +24,10 @@ public class CartSubscriptionDto {
 
     private String id;
     private String customerId;
-    private String sellerId;
-    private Map<String, String> productVariantId;
+
+    // CRITICAL UPDATE: Replaced sellerId and productVariantId with this list
+    private List<SubscriptionItem> subscriptionItems;
+
     private String skuId;
     private String orderId;
     private String consignmentId;
@@ -38,4 +41,21 @@ public class CartSubscriptionDto {
     private BigDecimal amountPaid;
     private String customerAddressId;
     private String communityId;
+
+    /**
+     * Inner class for a line item within the subscription.
+     * Each item now includes the associated sellerId.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SubscriptionItem {
+        private String productId;
+        private String variantId;
+        private Integer quantity;
+
+        // ADDED: sellerId is now part of the line item
+        private String sellerId;
+    }
 }

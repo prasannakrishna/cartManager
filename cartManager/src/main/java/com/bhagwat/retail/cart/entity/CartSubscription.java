@@ -6,9 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,10 +36,10 @@ public class CartSubscription {
     private String sellerId;
 
     @ElementCollection
-    @CollectionTable(name = "product_variants", joinColumns = @JoinColumn(name = "subscription_id"))
-    @MapKeyColumn(name = "product_id")
-    @Column(name = "product_variant_id")
-    private Map<String, String> productVariantId;
+    @CollectionTable(name = "subscription_item", joinColumns = @JoinColumn(name = "subscription_id"))
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "item_details", columnDefinition = "jsonb")
+    private List<SubscriptionItem> subscriptionItems;
 
     private String skuId;
     private String orderId;
@@ -49,6 +52,9 @@ public class CartSubscription {
     private CalendarUnit calendarUnit;
 
     private LocalDate subscriptionStartDate;
+
+    @Column(name = "cart_checkout_date")
+    private LocalDate cartCheckOutDate;
 
     @Enumerated(EnumType.STRING)
     private SubscriptionCycleStatus currentSubscriptionCycleStatus;
